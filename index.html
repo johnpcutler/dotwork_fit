@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Qualifier</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      #score-indicator {
+        transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .questions-section {
+        height: calc(75vh);
+        overflow-y: auto;
+      }
+      .fit-score-section {
+        height: calc(25vh);
+        position: sticky;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background-color: white;
+        border-top: 1px solid #e5e7eb;
+        z-index: 10;
+      }
+      .explanation-enter {
+        opacity: 0;
+        transform: translateY(10px);
+        transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+      }
+      .explanation-enter-active {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      #explanation-container {
+        flex: 1;
+        overflow-y: auto;
+        margin-left: 1rem;
+      }
+    </style>
+  </head>
+  <body class="bg-gray-50">
+    <!-- Questions Section - top 75% -->
+    <div class="questions-section p-8">
+      <div class="max-w-4xl mx-auto">
+        <div class="mb-8">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-sm text-gray-600">Progress</span>
+            <span class="text-sm text-gray-600" id="progress-text">0 / 0</span>
+          </div>
+          <div class="w-full bg-gray-200 rounded-full h-2">
+            <div id="progress-bar" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <div id="questions-container">
+          <!-- Questions will be inserted here by JavaScript -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Fit Score Section - bottom 25% -->
+    <div class="fit-score-section p-4">
+      <div class="max-w-4xl mx-auto">
+        <div class="flex items-start gap-4 mb-3">
+          <div class="flex items-center gap-4 flex-shrink-0">
+            <h2 class="text-2xl font-bold">Fit Score</h2>
+            <div class="bg-white px-4 py-1 rounded-full shadow-lg border-2 border-gray-200">
+              <span id="score-value" class="text-2xl font-bold text-blue-600">0</span>
+            </div>
+          </div>
+
+          <!-- Explanation Messages -->
+          <div id="explanation-container" class="max-h-[80px]">
+            <!-- Explanations will be inserted here -->
+          </div>
+        </div>
+        
+        <div class="relative w-full">
+          <div class="flex justify-between text-sm font-medium mb-1">
+            <span class="text-red-600 font-semibold pl-[100px]">Poor Fit</span>
+            <span class="text-green-600 font-semibold pr-[100px]">Great Fit</span>
+          </div>
+
+          <svg class="w-full" height="60" viewBox="0 0 800 60">
+            <!-- Background scale -->
+            <rect x="100" y="20" width="600" height="8" fill="#e5e7eb" rx="4" />
+            
+            <!-- Color zones -->
+            <rect x="100" y="20" width="300" height="8" fill="#fee2e2" rx="4" opacity="0.5" />
+            <rect x="400" y="20" width="300" height="8" fill="#dcfce7" rx="4" opacity="0.5" />
+            
+            <!-- Tick marks and labels -->
+            <!-- -20 -->
+            <line x1="100" y1="15" x2="100" y2="33" stroke="#dc2626" stroke-width="2" />
+            <text x="100" y="50" text-anchor="middle" fill="#dc2626" font-size="12" font-weight="bold">-20</text>
+            
+            <!-- -10 -->
+            <line x1="250" y1="17" x2="250" y2="31" stroke="#666" stroke-width="1.5" />
+            <text x="250" y="50" text-anchor="middle" fill="#666" font-size="12">-10</text>
+            
+            <!-- 0 -->
+            <line x1="400" y1="15" x2="400" y2="33" stroke="#1e40af" stroke-width="2" />
+            <text x="400" y="50" text-anchor="middle" fill="#1e40af" font-size="12" font-weight="bold">0</text>
+            
+            <!-- +10 -->
+            <line x1="550" y1="17" x2="550" y2="31" stroke="#666" stroke-width="1.5" />
+            <text x="550" y="50" text-anchor="middle" fill="#666" font-size="12">10</text>
+            
+            <!-- +20 -->
+            <line x1="700" y1="15" x2="700" y2="33" stroke="#16a34a" stroke-width="2" />
+            <text x="700" y="50" text-anchor="middle" fill="#16a34a" font-size="12" font-weight="bold">20</text>
+            
+            <!-- Score indicator -->
+            <g id="score-indicator" transform="translate(400 0)">
+              <path d="M 0 10 L -6 25 L 6 25 Z" fill="#2563eb" />
+            </g>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      console.log('Test log - script is running');
+      
+      // Data Model
+      const qualifierData = {
+        questions: [
+          {
+            id: 1,
+            displayId: "1",
+            text: "Do you have a defined operating system (a set of principles, rituals, cycles, artifacts, guidelines, and working agreements) that is documented somewhere?",
+            type: "yesno",
+            dependencies: [],
+            scoring: {
+              yes: { score: 2, explanation: "Strong indicator of organizational maturity" },
+              no: { score: -2, explanation: "Lack of documented processes may indicate challenges" }
+            }
+          },
+          {
+            id: 2,
+            displayId: "1A",
+            text: "Where did your operating system originate?",
+            type: "choice",
+            dependencies: [
+              { questionId: 1, requiredAnswer: "yes" }
+            ],
+            options: [
+              {
+                id: "wellknown",
+                text: "We are using whatever the consultants told us to use.",
+                score: 0,
+                explanation: "Using established systems"
+              },
+              {
+                id: "mixed",
+                text: "We mixed and matched available approaches to come up with what worked.",
+                score: 1,
+                explanation: "Pragmatic approach to process adoption"
+              },
+              {
+                id: "invented",
+                text: "We love naming and inventing unique ways of working! So we invented some of it, and then mixed and matched for the rest of it.",
+                score: 2,
+                explanation: "Innovative approach to process development"
+              }
+            ]
+          },
+          {
+            id: 3,
+            displayId: "2",
+            text: "Are you attempting to replicate a tool primarily used for local front-line collaboration and bottom-up sharing (e.g., Jira Product Discovery)?",
+            type: "yesno",
+            dependencies: [],
+            scoring: {
+              yes: { score: -2, explanation: "We aren't interested in competing with front-line collaboration tools." },
+              no: { score: 2, explanation: "A better fit for our value proposition. We love integrating with those tools." }
+            }
+          },
+          {
+            id: 4,
+            displayId: "3",
+            text: "What is your current operating model?",
+            type: "choice",
+            dependencies: [],
+            options: [
+              {
+                id: "heavyweight",
+                text: "Heavyweight, centralized IT project/program-based model with high governance requirements, long planning horizons, fungible \"resource\" mindset, and exceedingly high level of dependencies.",
+                score: -2,
+                explanation: "Likely too complex for us to accommodate (e.g., complex scenario planning)."
+              },
+              {
+                id: "transitional",
+                text: "Transitional. Making the shift from projects to products. A foot in both worlds.",
+                score: 3,
+                explanation: "Actively working to modernize practices"
+              },
+              {
+                id: "empowered",
+                text: "Empowered product model with occasional high dependency efforts. Desire for aligned autonomy and push/pull between centralization and decentralization.",
+                score: 2,
+                explanation: "Likely a good fit unless their is a huge internal tool allergy."
+              }
+            ]
+          },
+          {
+            id: 5,
+            displayId: "4",
+            text: "What best describes your quest for new tooling?",
+            type: "choice",
+            dependencies: [],
+            options: [
+              {
+                id: "consolidate",
+                text: "We are looking to consolidate a tool stack that works but is too costly",
+                score: 0,
+                explanation: "We may not be less expensive. Pure consolidation isn't our thing right now."
+              },
+              {
+                id: "replace_spreadsheets",
+                text: "We are looking to replace all the spreadsheets and docs",
+                score: 2,
+                explanation: "Nice, we've got you!"
+              },
+              {
+                id: "augment",
+                text: "We are looking to augment tools that work well, but that we are bending too far to meet the needs of the leaders, reporting, etc.",
+                score: 2,
+                explanation: "Good fit, but depends a bit on the tool"
+              },
+              {
+                id: "specific_tool",
+                text: "We have a specific tool in mind that's just a PIA to use and forces us to work a certain way.",
+                score: 0,
+                explanation: "depends on the tool. We may not be ready to replace something wholesale"
+              }
+            ]
+          },
+          {
+            id: 6,
+            displayId: "5",
+            text: "Do you use Airtable, Coda, or Notion?",
+            type: "yesno",
+            dependencies: [],
+            scoring: {
+              yes: { score: -1, explanation: "Depends a bit on their answer to the next question." },
+              no: { score: 1, explanation: "Might suggest a potential gap." }
+            }
+          },
+          {
+            id: 7,
+            displayId: "5A",
+            text: "What do you use no-code tools for?",
+            type: "choice",
+            dependencies: [
+              { questionId: 6, requiredAnswer: "yes" }
+            ],
+            options: [
+              {
+                id: "docs",
+                text: "Mostly document editing",
+                score: 2,
+                explanation: "Basic usage suggests room for additional tooling"
+              },
+              {
+                id: "docs_tables",
+                text: "Document editing, and some lightweight tables for organization",
+                score: 1,
+                explanation: "Moderate usage with potential for complementary tools"
+              },
+              {
+                id: "spot",
+                text: "A spot solution (e.g., OKRs, or status reviews)",
+                score: 1,
+                explanation: "Focused usage indicates openness to specialized tools"
+              },
+              {
+                id: "full",
+                text: "A full-blown operating system tool stack",
+                score: -2,
+                explanation: "Heavy investment in existing tools may present adoption challenges"
+              }
+            ]
+          },
+          {
+            id: 8,
+            displayId: "5B",
+            text: "How is that working out?",
+            type: "choice",
+            dependencies: [
+              { questionId: 6, requiredAnswer: "yes" },
+              { questionId: 7, requiredAnswer: ["spot", "full"] }
+            ],
+            options: [
+              {
+                id: "flawless",
+                text: "Working flawlessly, and easy to maintain",
+                score: -2,
+                explanation: "Good for now"
+              },
+              {
+                id: "okay",
+                text: "It does the job, but I could see this breaking down in the future",
+                score: -2,
+                explanation: "Let's chat later"
+              },
+              {
+                id: "pro",
+                text: "We're lucky that [person] is a pro at this. They help keep the solution intact",
+                score: 1,
+                explanation: "Cool. I hope they stay with your company!"
+              },
+              {
+                id: "franken",
+                text: "We've built a franken tool that is fragile, hard to change, and hard to maintain",
+                score: 3,
+                explanation: "We should at least have a chat about Dotwork"
+              }
+            ]
+          },
+          {
+            id: 9,
+            displayId: "6",
+            text: "When you think about key rituals like QBRs, quarterly planning, or product reviews, what best describes your biggest pain point?",
+            type: "choice",
+            dependencies: [],
+            options: [
+              {
+                id: "manual",
+                text: "All the manual work pulling together the information",
+                score: 2,
+                explanation: "We can certainly help here."
+              },
+              {
+                id: "canceling",
+                text: "We're always canceling them or getting distracted and going off script",
+                score: -2,
+                explanation: "Team likely has other challenges getting in the way at the moment."
+              },
+              {
+                id: "tools",
+                text: "We're juggling too many tools in the meetings",
+                score: 1,
+                explanation: "We can help, but it depends on the tools"
+              },
+              {
+                id: "stale",
+                text: "The information is stale and we end up not being able to make decisions",
+                score: 2,
+                explanation: "Sweetspot for us"
+              }
+            ]
+          },
+          {
+            id: 10,
+            displayId: "7",
+            text: "Where are you currently experiencing the biggest gap in terms of transparency and visibility?",
+            type: "choice",
+            dependencies: [],
+            options: [
+              {
+                id: "dependencies",
+                text: "Dependencies",
+                score: 1,
+                explanation: "Good fit, provided you're open to lightweight approaches"
+              },
+              {
+                id: "roadmaps",
+                text: "Linking team roadmaps and progress to product and corporate strategy",
+                score: 2,
+                explanation: "This is a sweet spot for us"
+              },
+              {
+                id: "goals",
+                text: "Progress towards goals, and goal connection to strategy",
+                score: 2,
+                explanation: "Great fit!"
+              },
+              {
+                id: "budgets",
+                text: "The flow from budgets to business results",
+                score: 0,
+                explanation: "Will be a good fit in the near future. Less so now"
+              },
+              {
+                id: "programs",
+                text: "Program and large project progress",
+                score: -1,
+                explanation: "We're less of a program management tool."
+              }
+            ]
+          },
+          {
+            id: 11,
+            displayId: "8",
+            text: "Have you run into any of these monsters in the last 12 months?",
+            instruction: "Select all that apply",
+            type: "multi",
+            dependencies: [],
+            options: [
+              {
+                id: "initiatives",
+                text: "A crazy list of initiatives in a spreadsheet that gets used once for annual planning, but somehow never updated or used again",
+                score: 1,
+                explanation: "We can help automate this"
+              },
+              {
+                id: "presentations",
+                text: "Presentations we have to update by hand with the latest information",
+                score: 1,
+                explanation: "We can help automate this"
+              },
+              {
+                id: "dependencies",
+                text: "A home-grown spreadsheet solution for dependency coordination that we roll out every quarter",
+                score: 1,
+                explanation: "We can help automate this"
+              },
+              {
+                id: "budgets",
+                text: "Crazy pivot tables where we try to figure out where team budgets are going",
+                score: 1,
+                explanation: "We can help automate this"
+              },
+              {
+                id: "roadmap",
+                text: "A roadmap created in Google Docs or Powerpoint",
+                score: 1,
+                explanation: "We can help automate this"
+              },
+              {
+                id: "allocations",
+                text: "Columns with engineers and rows with projects, and % allocations (in a spreadsheet)",
+                score: 1,
+                explanation: "We can help automate this"
+              }
+            ]
+          },
+          {
+            id: 12,
+            displayId: "9",
+            text: "How does your company feel about partnering with early-stage startups (that have a strong track record, plentiful funding, great advisors, and industry experts on staff)?",
+            type: "choice",
+            dependencies: [],
+            options: [
+              {
+                id: "encouraged",
+                text: "It is encouraged! We're always experimenting with new solutions.",
+                score: 3,
+                explanation: "Great cultural fit for innovation"
+              },
+              {
+                id: "open",
+                text: "An open door—but you'll need to prove you are legit.",
+                score: 2,
+                explanation: "Fair and reasonable approach"
+              },
+              {
+                id: "fan",
+                text: "I'm a fan, but realistically it might be seen as a liability here",
+                score: -1,
+                explanation: "May need to work harder to prove stability"
+              },
+              {
+                id: "procurement",
+                text: "I'll let you know after our procurement team takes 6 months to review anything.",
+                score: -3,
+                explanation: "Significant procurement challenges ahead"
+              }
+            ]
+          }
+        ],
+        scoreRanges: [
+          { min: -20, max: -10, label: "Poor Fit", color: "red" },
+          { min: -10, max: 0, label: "Below Average Fit", color: "orange" },
+          { min: 0, max: 10, label: "Good Fit", color: "blue" },
+          { min: 10, max: 20, label: "Excellent Fit", color: "green" }
+        ],
+        config: {
+          minScore: -20,
+          maxScore: 20,
+          scaleStart: 100, // SVG x-coordinate for start of scale
+          scaleEnd: 700,   // SVG x-coordinate for end of scale
+          defaultPosition: 400 // SVG x-coordinate for 0 score
+        }
+      };
+
+      // State Management
+      const appState = {
+        answers: {},
+        currentScore: 0,
+        
+        calculateScore() {
+          let newScore = 0;
+          let explanations = [];
+
+          qualifierData.questions.forEach(question => {
+            if (this.shouldShowQuestion(question)) {
+              const answer = this.answers[question.id];
+              if (answer) {
+                if (question.type === 'yesno') {
+                  newScore += question.scoring[answer].score;
+                  explanations.push(question.scoring[answer].explanation);
+                } else if (question.type === 'choice') {
+                  const option = question.options.find(opt => opt.id === answer);
+                  if (option) {
+                    newScore += option.score;
+                    explanations.push(option.explanation);
+                  }
+                } else if (question.type === 'multi') {
+                  // Handle multiple selections
+                  const selectedOptions = question.options.filter(opt => answer.includes(opt.id));
+                  selectedOptions.forEach(opt => {
+                    newScore += opt.score;
+                    explanations.push(opt.explanation);
+                  });
+                }
+              }
+            }
+          });
+
+          this.currentScore = Math.max(
+            qualifierData.config.minScore, 
+            Math.min(qualifierData.config.maxScore, newScore)
+          );
+          return { score: this.currentScore, explanations };
+        },
+
+        shouldShowQuestion(question) {
+          // Base questions are always shown
+          if (!question.dependencies || question.dependencies.length === 0) {
+            return true;
+          }
+
+          // For conditional questions, check if ALL their dependencies are met
+          return question.dependencies.every(dep => {
+            const parentAnswer = appState.answers[dep.questionId];
+            
+            // Handle array of required answers (for multiple choice)
+            if (Array.isArray(dep.requiredAnswer)) {
+              return parentAnswer && dep.requiredAnswer.includes(parentAnswer);
+            }
+            
+            // Handle single required answer (for yes/no)
+            return parentAnswer === dep.requiredAnswer;
+          });
+        },
+
+        getProgress() {
+          // Only count questions that are currently visible
+          const visibleQuestions = qualifierData.questions.filter(q => this.shouldShowQuestion(q));
+          return {
+            answered: Object.keys(this.answers).length,
+            total: visibleQuestions.length
+          };
+        }
+      };
+
+      // UI Updates
+      const ui = {
+        updateProgress() {
+          const progress = appState.getProgress();
+          document.getElementById('progress-text').textContent = 
+            `${progress.answered} / ${progress.total}`;
+          document.getElementById('progress-bar').style.width = 
+            `${(progress.answered / progress.total) * 100}%`;
+        },
+
+        updateExplanations() {
+          const container = document.getElementById('explanation-container');
+          const { explanations } = appState.calculateScore();
+          
+          if (explanations.length === 0) {
+            container.innerHTML = '';
+            return;
+          }
+
+          // Show the most recent explanation
+          const explanation = explanations[explanations.length - 1];
+          const question = qualifierData.questions.find(q => 
+            appState.answers[q.id] && 
+            (q.type === 'yesno' ? q.scoring[appState.answers[q.id]].explanation === explanation :
+             q.type === 'choice' ? q.options.find(opt => opt.id === appState.answers[q.id])?.explanation === explanation :
+             q.type === 'multi' ? q.options.find(opt => appState.answers[q.id].includes(opt.id))?.explanation === explanation : false)
+          );
+
+          if (!question) {
+            container.innerHTML = '';
+            return;
+          }
+
+          // Get the score change
+          let scoreChange;
+          if (question.type === 'yesno') {
+            scoreChange = question.scoring[appState.answers[question.id]].score;
+          } else if (question.type === 'choice') {
+            const option = question.options.find(opt => opt.id === appState.answers[question.id]);
+            scoreChange = option ? option.score : 0;
+          } else if (question.type === 'multi') {
+            const selectedOptions = question.options.filter(opt => 
+              appState.answers[question.id].includes(opt.id)
+            );
+            scoreChange = selectedOptions.reduce((sum, opt) => sum + opt.score, 0);
+          }
+
+          // Determine score pill color and sign
+          let pillColor, scoreText;
+          if (scoreChange > 0) {
+            pillColor = 'bg-green-100 text-green-700 border-green-200';
+            scoreText = `+${scoreChange}`;
+          } else if (scoreChange < 0) {
+            pillColor = 'bg-red-100 text-red-700 border-red-200';
+            scoreText = scoreChange;
+          } else {
+            pillColor = 'bg-gray-100 text-gray-700 border-gray-200';
+            scoreText = '0';
+          }
+
+          // Create and animate the explanation
+          const explanationHTML = `
+            <div class="explanation-enter p-2 bg-gray-50 rounded-lg flex items-center gap-3">
+              <div class="flex-shrink-0">
+                <span class="font-semibold text-blue-600">${question.displayId}:</span>
+              </div>
+              <span class="text-gray-700 text-sm flex-grow">${explanation}</span>
+              <div class="flex-shrink-0">
+                <span class="px-2 py-1 rounded-full text-xs font-medium border ${pillColor}">
+                  ${scoreText}
+                </span>
+              </div>
+            </div>
+          `;
+
+          // Update the container with animation
+          container.innerHTML = explanationHTML;
+
+          // Trigger animation
+          requestAnimationFrame(() => {
+            const el = container.querySelector('.explanation-enter');
+            if (el) {
+              el.classList.add('explanation-enter-active');
+            }
+          });
+        },
+
+        updateScore() {
+          const { score } = appState.calculateScore();
+          const scoreElement = document.getElementById('score-value');
+          scoreElement.textContent = score;
+          
+          // Calculate position on scale
+          const position = qualifierData.config.defaultPosition + 
+            (score * ((qualifierData.config.scaleEnd - qualifierData.config.scaleStart) / 
+              (qualifierData.config.maxScore * 2)));
+          
+          const indicator = document.getElementById('score-indicator');
+          indicator.setAttribute('transform', `translate(${position} 0)`);
+
+          // Update explanations when score changes
+          this.updateExplanations();
+        },
+
+        renderQuestions() {
+          const container = document.getElementById('questions-container');
+          const visibleQuestions = qualifierData.questions.filter(q => appState.shouldShowQuestion(q));
+          
+          container.innerHTML = visibleQuestions.map(question => `
+            <div class="mb-8 p-6 rounded-lg border bg-white border-gray-300 ${
+              question.dependencies && question.dependencies.length > 0 ? 'ml-8' : ''
+            }">
+              <div class="flex items-start gap-4">
+                <div class="flex-shrink-0 w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-semibold">
+                  ${question.displayId}
+                </div>
+                <div class="flex-grow">
+                  <h3 class="text-lg font-medium mb-4">${question.text}</h3>
+                  ${question.instruction ? `<p class="text-sm text-gray-600 italic mb-4">${question.instruction}</p>` : ''}
+                  ${question.type === 'yesno'
+                    ? `
+                      <div class="flex gap-4">
+                        <button onclick="handleAnswer(${question.id}, 'yes')" 
+                          class="px-4 py-2 rounded-lg flex items-center gap-2 ${
+                            appState.answers[question.id] === 'yes' 
+                              ? 'bg-green-100 text-green-700' 
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }">
+                          ✓ Yes
+                        </button>
+                        <button onclick="handleAnswer(${question.id}, 'no')"
+                          class="px-4 py-2 rounded-lg flex items-center gap-2 ${
+                            appState.answers[question.id] === 'no' 
+                              ? 'bg-red-100 text-red-700' 
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }">
+                          ✕ No
+                        </button>
+                      </div>
+                    `
+                    : question.type === 'choice'
+                    ? `
+                      <div class="flex flex-col gap-3">
+                        ${question.options.map(option => `
+                          <button onclick="handleAnswer(${question.id}, '${option.id}')"
+                            class="w-full text-left px-4 py-3 rounded-lg flex items-start gap-3 ${
+                              appState.answers[question.id] === option.id
+                                ? 'bg-blue-100 text-blue-700 border-2 border-blue-300'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }">
+                            <div class="flex-shrink-0 mt-1">
+                              <div class="w-4 h-4 rounded-full border-2 ${
+                                appState.answers[question.id] === option.id
+                                  ? 'border-blue-700 bg-blue-700'
+                                  : 'border-gray-400'
+                              }"></div>
+                            </div>
+                            <span>${option.text}</span>
+                          </button>
+                        `).join('')}
+                      </div>
+                    `
+                    : question.type === 'multi'
+                    ? `
+                      <div class="flex flex-col gap-3">
+                        ${question.options.map(option => `
+                          <button onclick="handleMultiAnswer(${question.id}, '${option.id}')"
+                            class="w-full text-left px-4 py-3 rounded-lg flex items-start gap-3 ${
+                              (appState.answers[question.id] || []).includes(option.id)
+                                ? 'bg-blue-100 text-blue-700 border-2 border-blue-300'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }">
+                            <div class="flex-shrink-0 mt-1">
+                              <div class="w-4 h-4 rounded-full border-2 ${
+                                (appState.answers[question.id] || []).includes(option.id)
+                                  ? 'border-blue-700 bg-blue-700'
+                                  : 'border-gray-400'
+                              }"></div>
+                            </div>
+                            <span>${option.text}</span>
+                          </button>
+                        `).join('')}
+                      </div>
+                    `
+                    : ''}
+                </div>
+              </div>
+            </div>
+          `).join('');
+
+          // Add event listeners
+          visibleQuestions.forEach(question => {
+            const inputs = document.querySelectorAll(`input[name="q${question.id}"]`);
+            inputs.forEach(input => {
+              input.addEventListener('change', (e) => {
+                if (question.type === 'multi') {
+                  // Handle multiple selections
+                  const currentAnswers = appState.answers[question.id] || [];
+                  if (e.target.checked) {
+                    currentAnswers.push(e.target.value);
+                  } else {
+                    const index = currentAnswers.indexOf(e.target.value);
+                    if (index > -1) {
+                      currentAnswers.splice(index, 1);
+                    }
+                  }
+                  handleAnswer(question.id, currentAnswers);
+                } else {
+                  handleAnswer(question.id, e.target.value);
+                }
+              });
+            });
+          });
+        }
+      };
+
+      // Initial render
+      console.log('[Survey Log] Initializing survey...');
+      ui.renderQuestions();
+      console.log('[Survey Log] Survey initialized. Current score: 0');
+      console.log('---');
+
+      // Event Handlers
+      function handleMultiAnswer(questionId, optionId) {
+        const currentAnswers = appState.answers[questionId] || [];
+        const index = currentAnswers.indexOf(optionId);
+        const question = qualifierData.questions.find(q => q.id === questionId);
+        
+        if (index > -1) {
+          currentAnswers.splice(index, 1);
+          console.log(`[Survey Log] Question ${questionId} (${question.displayId}): Removed option "${optionId}"`);
+        } else {
+          currentAnswers.push(optionId);
+          console.log(`[Survey Log] Question ${questionId} (${question.displayId}): Added option "${optionId}"`);
+        }
+        
+        handleAnswer(questionId, currentAnswers);
+      }
+
+      function handleAnswer(questionId, answer) {
+        // Store the previous answer to check if it changed
+        const previousAnswer = appState.answers[questionId];
+        const question = qualifierData.questions.find(q => q.id === questionId);
+        
+        // Log the interaction
+        console.log(`[Survey Log] Question ${questionId} (${question.displayId}): "${question.text}"`);
+        console.log(`[Survey Log] Previous Answer:`, previousAnswer);
+        console.log(`[Survey Log] New Answer:`, answer);
+        
+        // Update the answer
+        appState.answers[questionId] = answer;
+
+        // If the answer changed, we need to clean up dependent answers
+        if (previousAnswer !== answer) {
+          // Find all questions that depend on this question
+          const dependentQuestions = qualifierData.questions.filter(q => 
+            q.dependencies && q.dependencies.some(dep => dep.questionId === questionId)
+          );
+
+          // Remove answers for dependent questions that are no longer valid
+          dependentQuestions.forEach(q => {
+            // Check if the question should still be shown based on new parent answer
+            const shouldShow = q.dependencies.every(dep => {
+              const parentAnswer = appState.answers[dep.questionId];
+              return parentAnswer === dep.requiredAnswer;
+            });
+
+            // If the question should no longer be shown, remove its answer
+            if (!shouldShow) {
+              console.log(`[Survey Log] Removing dependent answer for Question ${q.id} (${q.displayId}) due to parent answer change`);
+              delete appState.answers[q.id];
+            }
+          });
+        }
+
+        const { score, explanations } = appState.calculateScore();
+        console.log(`[Survey Log] Current Score: ${score}`);
+        console.log(`[Survey Log] Latest Explanation:`, explanations[explanations.length - 1]);
+        console.log('---');
+
+        appState.calculateScore();
+        ui.updateProgress();
+        ui.updateScore();
+        ui.renderQuestions();
+      }
+    </script>
+  </body>
+</html> 
