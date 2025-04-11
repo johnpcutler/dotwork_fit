@@ -56,6 +56,10 @@
         <div id="questions-container">
           <!-- Questions will be inserted here by JavaScript -->
         </div>
+
+        <div id="final-message-container" class="mt-8">
+          <!-- Final message will be inserted here by JavaScript -->
+        </div>
       </div>
     </div>
 
@@ -121,8 +125,6 @@
     </div>
 
     <script>
-      console.log('Test log - script is running');
-      
       // Data Model
       const qualifierData = {
         questions: [
@@ -133,8 +135,8 @@
             type: "yesno",
             dependencies: [],
             scoring: {
-              yes: { score: 2, explanation: "Strong indicator of organizational maturity" },
-              no: { score: -2, explanation: "Lack of documented processes may indicate challenges" }
+              yes: { score: 2, explanation: "That might help Dotwork provide value a bit faster." },
+              no: { score: -1, explanation: "Not a deal-breaker, but could take a bit more time." }
             }
           },
           {
@@ -150,19 +152,19 @@
                 id: "wellknown",
                 text: "We are using whatever the consultants told us to use.",
                 score: 0,
-                explanation: "Using established systems"
+                explanation: "We'd be curious whether the consultant approach is working out."
               },
               {
                 id: "mixed",
                 text: "We mixed and matched available approaches to come up with what worked.",
                 score: 1,
-                explanation: "Pragmatic approach to process adoption"
+                explanation: "Pragmatic approach to designing a product OS."
               },
               {
                 id: "invented",
                 text: "We love naming and inventing unique ways of working! So we invented some of it, and then mixed and matched for the rest of it.",
                 score: 2,
-                explanation: "Innovative approach to process development"
+                explanation: "We're a great fit for home-rolled operating systems."
               }
             ]
           },
@@ -194,7 +196,7 @@
                 id: "transitional",
                 text: "Transitional. Making the shift from projects to products. A foot in both worlds.",
                 score: 3,
-                explanation: "Actively working to modernize practices"
+                explanation: "Actively working to continuously improve."
               },
               {
                 id: "empowered",
@@ -659,6 +661,43 @@
 
           // Update explanations when score changes
           this.updateExplanations();
+          
+          // Check if we should show the final message
+          this.updateFinalMessage();
+        },
+        
+        updateFinalMessage() {
+          const { score } = appState.calculateScore();
+          const lastQuestion = qualifierData.questions[qualifierData.questions.length - 1];
+          const hasAnsweredLastQuestion = appState.answers[lastQuestion.id] !== undefined;
+          
+          // Get the final message container
+          const finalMessageContainer = document.getElementById('final-message-container');
+          
+          // Only show the message if the last question has been answered
+          if (hasAnsweredLastQuestion) {
+            if (score > 14) {
+              finalMessageContainer.innerHTML = `
+                <div class="bg-blue-50 p-8 rounded-lg border border-blue-200 shadow-lg">
+                  <h3 class="text-xl font-bold text-blue-600 mb-4">Great fit!</h3>
+                  <p class="mb-6 text-gray-700">Based on your answers, we think we can help you.</p>
+                  <a href="https://calendar.app.google/ST6Q3PznxyPUVChT6" target="_blank" 
+                     class="inline-block px-8 py-4 bg-blue-600 text-white text-lg font-medium rounded-lg hover:bg-blue-700 transition-colors shadow-lg">
+                    Let's chat! Book a call with John Cutler
+                  </a>
+                </div>
+              `;
+            } else {
+              finalMessageContainer.innerHTML = `
+                <div class="bg-gray-50 p-8 rounded-lg border border-gray-200">
+                  <h3 class="text-xl font-bold text-gray-600 mb-4">Thank you for your time</h3>
+                  <p class="text-gray-700">Realistically, we probably can't help you right now. Stay in touch, and hopefully we can work together in the future.</p>
+                </div>
+              `;
+            }
+          } else {
+            finalMessageContainer.innerHTML = '';
+          }
         },
 
         renderQuestions() {
@@ -774,10 +813,7 @@
       };
 
       // Initial render
-      console.log('[Survey Log] Initializing survey...');
       ui.renderQuestions();
-      console.log('[Survey Log] Survey initialized. Current score: 0');
-      console.log('---');
 
       // Event Handlers
       function handleMultiAnswer(questionId, optionId) {
@@ -787,10 +823,8 @@
         
         if (index > -1) {
           currentAnswers.splice(index, 1);
-          console.log(`[Survey Log] Question ${questionId} (${question.displayId}): Removed option "${optionId}"`);
         } else {
           currentAnswers.push(optionId);
-          console.log(`[Survey Log] Question ${questionId} (${question.displayId}): Added option "${optionId}"`);
         }
         
         handleAnswer(questionId, currentAnswers);
@@ -800,11 +834,6 @@
         // Store the previous answer to check if it changed
         const previousAnswer = appState.answers[questionId];
         const question = qualifierData.questions.find(q => q.id === questionId);
-        
-        // Log the interaction
-        console.log(`[Survey Log] Question ${questionId} (${question.displayId}): "${question.text}"`);
-        console.log(`[Survey Log] Previous Answer:`, previousAnswer);
-        console.log(`[Survey Log] New Answer:`, answer);
         
         // Update the answer
         appState.answers[questionId] = answer;
@@ -826,16 +855,10 @@
 
             // If the question should no longer be shown, remove its answer
             if (!shouldShow) {
-              console.log(`[Survey Log] Removing dependent answer for Question ${q.id} (${q.displayId}) due to parent answer change`);
               delete appState.answers[q.id];
             }
           });
         }
-
-        const { score, explanations } = appState.calculateScore();
-        console.log(`[Survey Log] Current Score: ${score}`);
-        console.log(`[Survey Log] Latest Explanation:`, explanations[explanations.length - 1]);
-        console.log('---');
 
         appState.calculateScore();
         ui.updateProgress();
